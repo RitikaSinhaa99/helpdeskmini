@@ -1,0 +1,51 @@
+{% extends "base.html" %}
+
+{% block title %}Login - HelpDesk Mini{% endblock %}
+
+{% block content %}
+<div class="d-flex align-items-center justify-content-center vh-100">
+  <div class="text-center p-5 bg-dark bg-opacity-75 rounded-4 shadow-lg" style="min-width: 350px;">
+    <h2 class="mb-4 text-white">Login</h2>
+    <form id="loginForm">
+      <div class="mb-3 text-start">
+        <label class="form-label text-white">Email</label>
+        <input type="text" class="form-control" id="username" placeholder="Enter email" required>
+      </div>
+      <div class="mb-3 text-start">
+        <label class="form-label text-white">Password</label>
+        <input type="password" class="form-control" id="password" placeholder="Enter password" required>
+      </div>
+      <button class="btn btn-primary w-100">Login</button>
+    </form>
+    <div id="loginError" class="text-danger mt-3"></div>
+
+  </div>
+</div>
+
+<script>
+const form = document.getElementById('loginForm');
+form.addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const username = document.getElementById('username').value;
+  const password = document.getElementById('password').value;
+
+  try {
+    const res = await fetch('/api/token/', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ username, password })
+    });
+    const data = await res.json();
+    if (res.ok) {
+      localStorage.setItem('access_token', data.access);
+      localStorage.setItem('refresh_token', data.refresh);
+      window.location.href = '/tickets/';
+    } else {
+      document.getElementById('loginError').innerText = data.detail || 'Login failed';
+    }
+  } catch (err) {
+    document.getElementById('loginError').innerText = 'Network error';
+  }
+});
+</script>
+{% endblock %}

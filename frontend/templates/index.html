@@ -1,0 +1,17 @@
+{% extends "base.html" %}
+
+{% block title %}HelpDesk Mini{% endblock %}
+
+{% block content %}
+<div class="d-flex align-items-center justify-content-center vh-100">
+  <div class="text-center p-5 bg-dark bg-opacity-75 rounded-4 shadow-lg">
+    <h1 class="mb-4" style="color: #fff;"> Aloha, Help-Desk Mini</h1>
+    <p class="lead mb-4 text-white-50">A simple ticketing system to create tickets, add comments, and track progress.</p>
+    <div>
+      <a href="/login/" class="btn btn-primary btn-lg mx-2">Login</a>
+      <a href="/tickets/" class="btn btn-secondary btn-lg mx-2">View Tickets</a>
+    </div>
+
+  </div>
+</div>
+{% endblock %}

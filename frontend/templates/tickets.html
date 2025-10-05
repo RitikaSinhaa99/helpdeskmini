@@ -1,0 +1,164 @@
+{% extends "base.html" %}
+
+{% block title %}Tickets - HelpDesk Mini{% endblock %}
+
+{% block content %}
+<div class="container py-5">
+  <div class="d-flex justify-content-between align-items-center mb-4">
+    <h2 class="text-white">🎫 Tickets</h2>
+    <button class="btn btn-secondary" onclick="logout()">Logout</button>
+  </div>
+
+  <!-- Create Ticket Form -->
+  <div class="card p-4 mb-4 bg-dark bg-opacity-75 text-white shadow rounded-4">
+    <h5>Create New Ticket</h5>
+    <form id="ticketForm">
+      <input class="form-control mb-2" type="text" id="title" placeholder="Title" required>
+      <textarea class="form-control mb-2" id="description" placeholder="Description" required></textarea>
+      <select class="form-control mb-2" id="priority" required>
+        <option value="low">Low</option>
+        <option value="medium">Medium</option>
+        <option value="high">High</option>
+      </select>
+      <button class="btn btn-success w-100">Create Ticket</button>
+    </form>
+  </div>
+
+  <!-- Tickets List -->
+  <div id="tickets"></div>
+</div>
+
+<style>
+  .badge-open { background-color: #63856b; }        /* green */
+  .badge-in_progress { background-color: #83a1ce; } /* blue */
+  .badge-closed { background-color: #dc3545; }      /* red */
+</style>
+
+<script>
+const accessToken = localStorage.getItem('access_token');
+
+if (!accessToken) {
+  alert('You are not logged in! Redirecting...');
+  window.location.href = '/login/';
+}
+
+function logout() {
+  localStorage.removeItem('access_token');
+  localStorage.removeItem('refresh_token');
+  window.location.href = '/';
+}
+
+// Load Tickets
+async function loadTickets() {
+  try {
+    const res = await fetch('/api/tickets/', {
+      headers: { 'Authorization': `Bearer ${accessToken}` }
+    });
+    if (!res.ok) throw new Error('Failed to load tickets');
+    const data = await res.json();
+    const container = document.getElementById('tickets');
+    container.innerHTML = "";
+
+    data.results.forEach(t => {
+      container.innerHTML += `
+        <div class="card mb-3 p-3 bg-dark bg-opacity-75 text-white shadow rounded-4">
+          <h5>${t.title} 
+            <span class="badge badge-${t.status} text-white">${t.status.replace('_',' ')}</span>
+          </h5>
+          <p>${t.description}</p>
+          <small>Priority: ${t.priority} | SLA: ${t.sla_deadline}</small>
+          <br><br>
+          <button class="btn btn-sm btn-primary me-2" onclick="updateStatus(${t.id})">Mark In Progress</button>
+          <button class="btn btn-sm btn-secondary" onclick="addComment(${t.id})">Add Comment</button>
+          <div id="comments-${t.id}" class="mt-2"></div>
+        </div>
+      `;
+      loadComments(t.id);
+    });
+  } catch (err) {
+    console.error(err);
+    alert('Error loading tickets. Please login again.');
+    window.location.href = '/login/';
+  }
+}
+
+// Load Comments
+async function loadComments(ticketId) {
+  try {
+    const res = await fetch(`/api/tickets/${ticketId}/comments/`, {
+      headers: { 'Authorization': `Bearer ${accessToken}` }
+    });
+    if (!res.ok) return;
+    const comments = await res.json();
+    const container = document.getElementById(`comments-${ticketId}`);
+    container.innerHTML = comments.map(c => `<small><b>${c.user}</b>: ${c.text}</small><br>`).join('');
+  } catch (err) {
+    console.error(err);
+  }
+}
+
+// Create Ticket
+document.getElementById('ticketForm').addEventListener('submit', async e => {
+  e.preventDefault();
+  const title = document.getElementById('title').value;
+  const description = document.getElementById('description').value;
+  const priority = document.getElementById('priority').value;
+
+  try {
+    const res = await fetch('/api/tickets/', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${accessToken}`,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({ title, description, priority })
+    });
+    if (!res.ok) throw new Error('Failed to create ticket');
+    document.getElementById('ticketForm').reset();
+    loadTickets();
+  } catch (err) {
+    alert(err.message);
+  }
+});
+
+// Update Status
+async function updateStatus(ticketId) {
+  try {
+    const res = await fetch(`/api/tickets/${ticketId}/`, {
+      method: 'PATCH',
+      headers: {
+        'Authorization': `Bearer ${accessToken}`,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({ status: 'in_progress' })
+    });
+    if (!res.ok) throw new Error('Failed to update status');
+    loadTickets();
+  } catch (err) {
+    alert(err.message);
+  }
+}
+
+// Add Comment
+async function addComment(ticketId) {
+  const text = prompt('Enter your comment:');
+  if (!text) return;
+  try {
+    const res = await fetch(`/api/tickets/${ticketId}/add_comment/`, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${accessToken}`,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({ text })
+    });
+    if (!res.ok) throw new Error('Failed to add comment');
+    loadComments(ticketId);
+  } catch (err) {
+    alert(err.message);
+  }
+}
+
+window.onload = loadTickets;
+</script>
+{% endblock %}
