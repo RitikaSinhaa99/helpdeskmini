@@ -38,10 +38,11 @@ form.addEventListener('submit', async (e) => {
   const password = document.getElementById('password').value;
 
   try {
-    const res = await fetch('/api/token/', {
+    // ✅ Updated API endpoint for deployed site
+    const res = await fetch('https://helpdeskmini-8uue.onrender.com/api/token/', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ email, password }) // ✅ use email
+      body: JSON.stringify({ email, password })
     });
 
     const data = await res.json();
@@ -52,7 +53,6 @@ form.addEventListener('submit', async (e) => {
       localStorage.setItem('refresh_token', data.refresh);
       window.location.href = '/tickets/';
     } else {
-      // show error from backend or generic message
       document.getElementById('loginError').innerText = data.detail || 'Login failed';
     }
   } catch (err) {
