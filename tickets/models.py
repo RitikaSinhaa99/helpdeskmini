@@ -3,16 +3,38 @@ from django.contrib.auth.models import AbstractUser
 from django.utils import timezone
 from django.conf import settings
 
-# Custom user with roles
+# -----------------------------
+# Custom User with roles
+# -----------------------------
 class User(AbstractUser):
     ROLE_CHOICES = (
         ('user','User'),
         ('agent','Agent'),
         ('admin','Admin'),
     )
+    email = models.EmailField(unique=True)  # <-- make it unique
     role = models.CharField(max_length=10, choices=ROLE_CHOICES, default='user')
 
+    USERNAME_FIELD = 'email'
+    REQUIRED_FIELDS = ['username']
+
+    def __str__(self):
+        return self.email
+
+
+# -----------------------------
+# Idempotency Key Model
+# -----------------------------
+class IdempotencyKey(models.Model):
+    user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE)
+    key = models.CharField(max_length=255, unique=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    response_data = models.JSONField(null=True, blank=True)
+    status_code = models.IntegerField(null=True, blank=True)
+
+# -----------------------------
 # Ticket Model
+# -----------------------------
 class Ticket(models.Model):
     PRIORITY_CHOICES = (
         ('low','Low'),
@@ -31,12 +53,13 @@ class Ticket(models.Model):
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='open')
     created_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='tickets')
     assignee = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True, related_name='assigned_tickets')
-    sla_deadline = models.DateTimeField()
+    sla_deadline = models.DateTimeField(blank=True, null=True)
+    version = models.PositiveIntegerField(default=1)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
     def save(self, *args, **kwargs):
-        # Auto-calculate SLA based on priority if not set
+        # Auto-set SLA if not set
         if not self.sla_deadline:
             if self.priority == 'high':
                 self.sla_deadline = timezone.now() + timezone.timedelta(hours=24)
@@ -44,9 +67,26 @@ class Ticket(models.Model):
                 self.sla_deadline = timezone.now() + timezone.timedelta(hours=48)
             else:
                 self.sla_deadline = timezone.now() + timezone.timedelta(hours=72)
+
+        # Increment version on update
+        if self.pk is not None:
+            self.version += 1
+
         super().save(*args, **kwargs)
 
+        # Automatically create timeline log
+        TimelineLog.objects.create(
+            ticket=self,
+            action_type=f"Ticket {self.status} (v{self.version})",
+            metadata={
+                "priority": self.priority,
+                "assignee": self.assignee.email if self.assignee else None
+            }
+        )
+
+# -----------------------------
 # Comment Model
+# -----------------------------
 class Comment(models.Model):
     ticket = models.ForeignKey(Ticket, on_delete=models.CASCADE, related_name='comments')
     user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE)
@@ -54,9 +94,20 @@ class Comment(models.Model):
     parent = models.ForeignKey('self', on_delete=models.CASCADE, null=True, blank=True, related_name='replies')
     created_at = models.DateTimeField(auto_now_add=True)
 
-# Timeline Log
+    def save(self, *args, **kwargs):
+        super().save(*args, **kwargs)
+        # Create timeline log
+        TimelineLog.objects.create(
+            ticket=self.ticket,
+            action_type="Comment Added",
+            metadata={"user": self.user.email, "text": self.text[:50]}
+        )
+
+# -----------------------------
+# Timeline Log Model
+# -----------------------------
 class TimelineLog(models.Model):
-    ticket = models.ForeignKey(Ticket, on_delete=models.CASCADE, related_name='timeline_logs')  # updated related_name
+    ticket = models.ForeignKey(Ticket, on_delete=models.CASCADE, related_name='timeline_logs')
     action_type = models.CharField(max_length=50)
     metadata = models.JSONField(blank=True, null=True)
     created_at = models.DateTimeField(auto_now_add=True)
