@@ -10,19 +10,16 @@ import dj_database_url
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
 
-
 # SECURITY WARNING: keep the secret key used in production secret!
 SECRET_KEY = os.environ.get('DJANGO_SECRET_KEY', 'django-insecure-dev-key')
 
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = os.environ.get('DJANGO_DEBUG', 'False') == 'True'
 
-# Allow all hosts for Render; can restrict later
+# Allowed hosts
 ALLOWED_HOSTS = os.environ.get('DJANGO_ALLOWED_HOSTS', '*').split(',')
 
-
 # Application definition
-
 INSTALLED_APPS = [
     'django.contrib.admin',
     'django.contrib.auth',
@@ -68,7 +65,6 @@ REST_FRAMEWORK = {
     }
 }
 
-
 ROOT_URLCONF = 'helpdeskmini_project.urls'
 
 TEMPLATES = [
@@ -88,7 +84,6 @@ TEMPLATES = [
 
 WSGI_APPLICATION = 'helpdeskmini_project.wsgi.application'
 
-
 # Database configuration using dj_database_url for Render Postgres
 DATABASES = {
     'default': dj_database_url.config(
@@ -99,7 +94,6 @@ DATABASES = {
 # Custom User model
 AUTH_USER_MODEL = 'tickets.User'
 
-
 # Password validation
 AUTH_PASSWORD_VALIDATORS = [
     {'NAME': 'django.contrib.auth.password_validation.UserAttributeSimilarityValidator',},
@@ -108,24 +102,17 @@ AUTH_PASSWORD_VALIDATORS = [
     {'NAME': 'django.contrib.auth.password_validation.NumericPasswordValidator',},
 ]
 
-
 # Internationalization
 LANGUAGE_CODE = 'en-us'
 TIME_ZONE = 'Asia/Kolkata'
 USE_I18N = True
 USE_TZ = True
 
-
 # Static files (CSS, JavaScript, Images)
 STATIC_URL = '/static/'
-STATICFILES_DIRS = [
-    BASE_DIR / "frontend/static",
-]
+STATICFILES_DIRS = [BASE_DIR / "frontend/static"]
 STATIC_ROOT = BASE_DIR / "staticfiles"
-
-# WhiteNoise settings
 STATICFILES_STORAGE = 'whitenoise.storage.CompressedManifestStaticFilesStorage'
-
 
 # Default primary key field type
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
